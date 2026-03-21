@@ -115,6 +115,12 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          # Use --image to update the container image to the new SHA version
-          kubectl set image deployment/train-service train-service=${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          # Dynamically inject the new Docker image build tag
+          sed -i "s|nightmarekd/train-service:latest|${{ env.DOCKER_IMAGE }}:${{ github.sha }}|g" k8s/deployment.yaml
+          
+          # Apply the manifests (creates them if they don't exist)
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          
+          # Wait for the pods to be completely available
           kubectl rollout status deployment/train-service --timeout=120s
