@@ -1,0 +1,33 @@
+{
+  "name": "train-management-service",
+  "version": "1.0.0",
+  "description": "A Node.js microservice for managing trains, stations, routes, and schedules",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest --forceExit --detectOpenHandles",
+    "seed": "node src/seeders/seed.js",
+    "migrate": "node src/models/index.js"
+  },
+  "keywords": ["train", "management", "microservice", "express", "nodejs"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "morgan": "^1.10.0",
+    "pg": "^8.13.0",
+    "pg-hstore": "^2.3.4",
+    "redis": "^4.7.0",
+    "sequelize": "^6.37.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.4",
+    "supertest": "^7.0.0"
+  }
+}
