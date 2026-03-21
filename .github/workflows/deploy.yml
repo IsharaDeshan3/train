@@ -8,7 +8,7 @@ on:
 
 env:
   DOCKER_IMAGE: nightmarekd/train-service
-  K8S_CLUSTER: ridiculous-CTSE-potato
+  K8S_CLUSTER: my-github-app
   AWS_REGION: us-east-1
   # Add your AWS Account ID here for the Role ARN
   AWS_ROLE_ARN: arn:aws:iam::965062601731:role/GitHubActionsEKSRole
