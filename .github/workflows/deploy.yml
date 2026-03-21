@@ -118,9 +118,8 @@ jobs:
           # Dynamically inject the new Docker image build tag
           sed -i "s|nightmarekd/train-service:latest|${{ env.DOCKER_IMAGE }}:${{ github.sha }}|g" k8s/deployment.yaml
           
-          # Apply the manifests (creates them if they don't exist)
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
+          # Apply ALL manifests in the k8s directory (Postgres, Redis, Secrets, App)
+          kubectl apply -f k8s/
           
           # Wait for the pods to be completely available
           kubectl rollout status deployment/train-service --timeout=120s
