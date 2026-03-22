@@ -15,7 +15,8 @@ const { searchSchedules } = require('./controllers/scheduleController');
 const app = express();
 
 // ─── Middleware ───────────────────────────────────────────────
-app.use(cors());
+const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*';
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
@@ -27,13 +28,15 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 }));
 
 // ─── API Routes ──────────────────────────────────────────────
+const { apiKeyAuth } = require('./middleware/auth');
+app.use('/api', apiKeyAuth);
 app.use('/api/trains', trainRoutes);
 app.use('/api/stations', stationRoutes);
 app.use('/api/routes', routeRoutes);
 app.use('/api/schedules', scheduleRoutes);
 
 // ─── Integration Endpoint ───────────────────────────────────
-app.get('/schedules/search', searchSchedules);
+app.get('/schedules/search', apiKeyAuth, searchSchedules);
 
 // ─── Health Check ────────────────────────────────────────────
 app.get('/health', (req, res) => {
