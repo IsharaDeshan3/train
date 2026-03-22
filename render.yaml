@@ -1,0 +1,31 @@
+# Render Blueprint specification
+# Deploy this by connecting your GitHub repository to Render (https://render.com)
+# Render will automatically detect this file.
+
+services:
+  - type: web
+    name: train-service
+    env: docker # Uses the existing Dockerfile
+    plan: free
+    region: frankfurt # Choose your preferred region
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      
+      # For DATABASE_URL, you will paste the URI from Supabase in the Render Dashboard
+      - key: DATABASE_URL
+        sync: false
+        
+      # For REDIS_URL, you will paste the URI from Upstash in the Render Dashboard
+      - key: REDIS_URL
+        sync: false
+
+      # Automatically generates a secure API key upon deployment
+      - key: SERVICE_API_KEY
+        generateValue: true
+
+      # Allowed CORS origins (change in Render dashboard if needed)
+      - key: ALLOWED_ORIGINS
+        value: "*"
