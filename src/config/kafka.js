@@ -1,7 +1,11 @@
 require('dotenv').config();
 const { Kafka, logLevel } = require('kafkajs');
 
-const brokers = (process.env.KAFKA_BROKERS || 'localhost:9092')
+const brokers = (
+  process.env.KAFKA_BROKERS || 
+  process.env.UPSTASH_KAFKA_BOOTSTRAP_SERVERS || 
+  'localhost:9092'
+)
   .split(',')
   .map((broker) => broker.trim())
   .filter(Boolean);
