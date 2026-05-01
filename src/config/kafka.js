@@ -1,4 +1,4 @@
-require('dotenv').config();
+// NOTE: dotenv is intentionally NOT called here — only in server.js.
 const { Kafka, logLevel } = require('kafkajs');
 
 const brokers = (

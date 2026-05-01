@@ -1,5 +1,5 @@
+// NOTE: dotenv is intentionally NOT called here — only in server.js.
 const { createClient } = require('redis');
-require('dotenv').config();
 
 const redisConfig = process.env.REDIS_URL 
   ? { url: process.env.REDIS_URL } 
