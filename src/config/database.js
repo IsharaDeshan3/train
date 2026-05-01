@@ -5,6 +5,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 const getMongoUri = () => {
   // Check common environment variable names used by various cloud providers
+  if (process.env.MONGODB_URI) return process.env.MONGODB_URI;
   if (process.env.MONGO_URI) return process.env.MONGO_URI;
   if (process.env.MONGODB_URL) return process.env.MONGODB_URL;
   if (process.env.MONGO_URL) return process.env.MONGO_URL;
