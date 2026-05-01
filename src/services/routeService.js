@@ -1,5 +1,6 @@
 const routeRepository = require('../repositories/routeRepository');
 const stationRepository = require('../repositories/stationRepository');
+const { publishDomainEvent } = require('../messaging/eventPublisher');
 
 class RouteService {
   async getAllRoutes() {
@@ -21,7 +22,7 @@ class RouteService {
       throw Object.assign(new Error('Route name, origin station, and destination station are required'), { statusCode: 400 });
     }
 
-    if (originStationId === destinationStationId) {
+    if (originStationId.toString() === destinationStationId.toString()) {
       throw Object.assign(new Error('Origin and destination stations must be different'), { statusCode: 400 });
     }
 
@@ -36,11 +37,23 @@ class RouteService {
       throw Object.assign(new Error('Destination station not found'), { statusCode: 404 });
     }
 
-    return routeRepository.create({ routeName, originStationId, destinationStationId, distance });
+    const route = await routeRepository.create({ routeName, originStationId, destinationStationId, distance });
+
+    try {
+      await publishDomainEvent('route', 'created', route.toJSON());
+    } catch (err) {
+      console.error('Failed to publish route.created event:', err.message);
+    }
+
+    return route;
   }
 
   async updateRoute(id, data) {
-    if (data.originStationId && data.destinationStationId && data.originStationId === data.destinationStationId) {
+    if (
+      data.originStationId
+      && data.destinationStationId
+      && data.originStationId.toString() === data.destinationStationId.toString()
+    ) {
       throw Object.assign(new Error('Origin and destination stations must be different'), { statusCode: 400 });
     }
 
@@ -48,6 +61,13 @@ class RouteService {
     if (!route) {
       throw Object.assign(new Error('Route not found'), { statusCode: 404 });
     }
+
+    try {
+      await publishDomainEvent('route', 'updated', route.toJSON());
+    } catch (err) {
+      console.error('Failed to publish route.updated event:', err.message);
+    }
+
     return route;
   }
 
@@ -56,6 +76,13 @@ class RouteService {
     if (!route) {
       throw Object.assign(new Error('Route not found'), { statusCode: 404 });
     }
+
+    try {
+      await publishDomainEvent('route', 'deleted', route.toJSON());
+    } catch (err) {
+      console.error('Failed to publish route.deleted event:', err.message);
+    }
+
     return route;
   }
 }

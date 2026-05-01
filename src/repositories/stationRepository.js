@@ -2,15 +2,19 @@ const { Station } = require('../models');
 
 class StationRepository {
   async findAll() {
-    return Station.findAll({ order: [['code', 'ASC']] });
+    return Station.find().sort({ code: 1 });
   }
 
   async findById(id) {
-    return Station.findByPk(id);
+    try {
+      return await Station.findById(id);
+    } catch (_) {
+      return null;
+    }
   }
 
   async findByCode(code) {
-    return Station.findOne({ where: { code } });
+    return Station.findOne({ code });
   }
 
   async create(data) {
@@ -18,16 +22,19 @@ class StationRepository {
   }
 
   async update(id, data) {
-    const station = await Station.findByPk(id);
-    if (!station) return null;
-    return station.update(data);
+    try {
+      return await Station.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+    } catch (_) {
+      return null;
+    }
   }
 
   async delete(id) {
-    const station = await Station.findByPk(id);
-    if (!station) return null;
-    await station.destroy();
-    return station;
+    try {
+      return await Station.findByIdAndDelete(id);
+    } catch (_) {
+      return null;
+    }
   }
 }
 

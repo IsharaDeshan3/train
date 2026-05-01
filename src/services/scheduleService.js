@@ -1,6 +1,7 @@
 const scheduleRepository = require('../repositories/scheduleRepository');
 const trainRepository = require('../repositories/trainRepository');
 const routeRepository = require('../repositories/routeRepository');
+const { publishDomainEvent } = require('../messaging/eventPublisher');
 
 class ScheduleService {
   async getAllSchedules() {
@@ -38,6 +39,12 @@ class ScheduleService {
       trainId, routeId, departureTime, arrivalTime, daysOfOperation, price, status,
     });
 
+    try {
+      await publishDomainEvent('schedule', 'created', schedule.toJSON());
+    } catch (err) {
+      console.error('Failed to publish schedule.created event:', err.message);
+    }
+
     // Invalidate cache when new schedule is created
     await scheduleRepository.invalidateCache();
 
@@ -50,6 +57,12 @@ class ScheduleService {
       throw Object.assign(new Error('Schedule not found'), { statusCode: 404 });
     }
 
+    try {
+      await publishDomainEvent('schedule', 'updated', schedule.toJSON());
+    } catch (err) {
+      console.error('Failed to publish schedule.updated event:', err.message);
+    }
+
     // Invalidate cache when schedule is updated
     await scheduleRepository.invalidateCache();
 
@@ -60,6 +73,12 @@ class ScheduleService {
     const schedule = await scheduleRepository.delete(id);
     if (!schedule) {
       throw Object.assign(new Error('Schedule not found'), { statusCode: 404 });
+    }
+
+    try {
+      await publishDomainEvent('schedule', 'deleted', schedule.toJSON());
+    } catch (err) {
+      console.error('Failed to publish schedule.deleted event:', err.message);
     }
 
     // Invalidate cache when schedule is deleted

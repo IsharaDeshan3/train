@@ -1,36 +1,46 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const { mongoose } = require('../config/database');
 
-const Station = sequelize.define('Station', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
+const stationSchema = new mongoose.Schema(
+  {
+    code: {
+      type: String,
+      required: true,
+      unique: true,
+      uppercase: true,
+      trim: true,
+      maxlength: 10,
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100,
+    },
+    city: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100,
+    },
+    latitude: {
+      type: Number,
+      required: false,
+    },
+    longitude: {
+      type: Number,
+      required: false,
+    },
   },
-  code: {
-    type: DataTypes.STRING(10),
-    allowNull: false,
-    unique: true,
-  },
-  name: {
-    type: DataTypes.STRING(100),
-    allowNull: false,
-  },
-  city: {
-    type: DataTypes.STRING(100),
-    allowNull: false,
-  },
-  latitude: {
-    type: DataTypes.DECIMAL(10, 7),
-    allowNull: true,
-  },
-  longitude: {
-    type: DataTypes.DECIMAL(10, 7),
-    allowNull: true,
-  },
-}, {
-  tableName: 'stations',
-  timestamps: true,
-});
+  {
+    timestamps: true,
+    toJSON: {
+      versionKey: false,
+      transform: (_, ret) => {
+        ret.id = ret._id.toString();
+        delete ret._id;
+      },
+    },
+  }
+);
 
-module.exports = Station;
+module.exports = mongoose.models.Station || mongoose.model('Station', stationSchema);

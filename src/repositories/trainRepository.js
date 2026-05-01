@@ -2,15 +2,19 @@ const { Train } = require('../models');
 
 class TrainRepository {
   async findAll() {
-    return Train.findAll({ order: [['trainNumber', 'ASC']] });
+    return Train.find().sort({ trainNumber: 1 });
   }
 
   async findById(id) {
-    return Train.findByPk(id);
+    try {
+      return await Train.findById(id);
+    } catch (_) {
+      return null;
+    }
   }
 
   async findByTrainNumber(trainNumber) {
-    return Train.findOne({ where: { trainNumber } });
+    return Train.findOne({ trainNumber });
   }
 
   async create(data) {
@@ -18,16 +22,19 @@ class TrainRepository {
   }
 
   async update(id, data) {
-    const train = await Train.findByPk(id);
-    if (!train) return null;
-    return train.update(data);
+    try {
+      return await Train.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+    } catch (_) {
+      return null;
+    }
   }
 
   async delete(id) {
-    const train = await Train.findByPk(id);
-    if (!train) return null;
-    await train.destroy();
-    return train;
+    try {
+      return await Train.findByIdAndDelete(id);
+    } catch (_) {
+      return null;
+    }
   }
 }
 

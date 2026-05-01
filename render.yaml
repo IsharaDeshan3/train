@@ -1,31 +1,68 @@
 # Render Blueprint specification
-# Deploy this by connecting your GitHub repository to Render (https://render.com)
+# Deploy by connecting your GitHub repository to Render (https://render.com)
 # Render will automatically detect this file.
+#
+# External dependencies you must provision before deploying:
+#   • MongoDB Atlas cluster  → paste the connection URI into MONGO_URI
+#   • Confluent Cloud / MSK  → set KAFKA_BROKERS, KAFKA_USERNAME, KAFKA_PASSWORD
+#   • Upstash Redis           → paste the Redis URL into REDIS_URL (optional)
 
 services:
   - type: web
     name: train-service
-    env: docker # Uses the existing Dockerfile
+    env: docker          # uses the repo's Dockerfile
     plan: free
-    region: frankfurt # Choose your preferred region
+    region: frankfurt    # change to your preferred region
     branch: main
     healthCheckPath: /health
+
     envVars:
       - key: NODE_ENV
         value: production
-      
-      # For DATABASE_URL, you will paste the URI from Supabase in the Render Dashboard
-      - key: DATABASE_URL
+
+      # ── MongoDB (required) ──────────────────────────────────────────────
+      # Paste your Atlas connection string here in the Render Dashboard.
+      # Format: mongodb+srv://<user>:<password>@<cluster>.mongodb.net/<dbname>
+      - key: MONGO_URI
         sync: false
-        
-      # For REDIS_URL, you will paste the URI from Upstash in the Render Dashboard
+
+      # ── Kafka (required for domain-event publishing) ────────────────────
+      # Set to the bootstrap server list of your managed Kafka cluster.
+      - key: KAFKA_BROKERS
+        sync: false
+      - key: KAFKA_ENABLED
+        value: "true"
+      - key: KAFKA_CLIENT_ID
+        value: train-management-service
+      - key: KAFKA_SSL
+        value: "true"
+      - key: KAFKA_SASL_MECHANISM
+        value: plain
+      - key: KAFKA_USERNAME
+        sync: false
+      - key: KAFKA_PASSWORD
+        sync: false
+      # Topic overrides (optional — defaults are fine for most deployments)
+      # - key: KAFKA_TRAIN_TOPIC
+      #   value: train.events
+      # - key: KAFKA_STATION_TOPIC
+      #   value: station.events
+      # - key: KAFKA_ROUTE_TOPIC
+      #   value: route.events
+      # - key: KAFKA_SCHEDULE_TOPIC
+      #   value: schedule.events
+
+      # ── Redis (optional — schedule-search cache) ────────────────────────
+      # Paste your Upstash Redis URL here. If left blank, caching is skipped.
       - key: REDIS_URL
         sync: false
 
-      # Automatically generates a secure API key upon deployment
+      # ── Security ────────────────────────────────────────────────────────
+      # Render generates a secure random value on first deploy.
       - key: SERVICE_API_KEY
         generateValue: true
 
-      # Allowed CORS origins (change in Render dashboard if needed)
+      # ── CORS ────────────────────────────────────────────────────────────
+      # Comma-separated list of allowed origins, or * for all.
       - key: ALLOWED_ORIGINS
         value: "*"

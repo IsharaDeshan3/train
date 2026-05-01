@@ -1,45 +1,35 @@
-const { Sequelize } = require('sequelize');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-let sequelize;
+const getMongoUri = () => {
+  if (process.env.MONGO_URI) return process.env.MONGO_URI;
+  if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('mongodb')) {
+    return process.env.DATABASE_URL;
+  }
 
-if (process.env.DATABASE_URL) {
-  sequelize = new Sequelize(process.env.DATABASE_URL, {
-    dialect: 'postgres',
-    logging: !isProduction ? console.log : false,
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false
-      }
-    },
-    pool: {
-      max: 10,
-      min: 0,
-      acquire: 30000,
-      idle: 10000,
-    },
+  const host = process.env.MONGO_HOST || 'localhost';
+  const port = process.env.MONGO_PORT || 27017;
+  const dbName = process.env.MONGO_DB_NAME || 'train_management';
+  return `mongodb://${host}:${port}/${dbName}`;
+};
+
+const connectDatabase = async () => {
+  const mongoUri = getMongoUri();
+
+  await mongoose.connect(mongoUri, {
+    maxPoolSize: Number(process.env.MONGO_MAX_POOL_SIZE || 20),
+    minPoolSize: Number(process.env.MONGO_MIN_POOL_SIZE || 0),
+    serverSelectionTimeoutMS: Number(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS || 30000),
+    autoIndex: !isProduction,
   });
-} else {
-  sequelize = new Sequelize(
-    process.env.DB_NAME || 'train_management',
-    process.env.DB_USER || 'postgres',
-    process.env.DB_PASSWORD || 'postgres',
-    {
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT || 5432,
-      dialect: 'postgres',
-      logging: process.env.NODE_ENV === 'development' ? console.log : false,
-      pool: {
-        max: 10,
-        min: 0,
-        acquire: 30000,
-        idle: 10000,
-      },
-    }
-  );
-}
 
-module.exports = sequelize;
+  return mongoose.connection;
+};
+
+module.exports = {
+  mongoose,
+  connectDatabase,
+  getMongoUri,
+};

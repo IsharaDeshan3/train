@@ -1,40 +1,39 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const { mongoose } = require('../config/database');
 
-const Route = sequelize.define('Route', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
-  routeName: {
-    type: DataTypes.STRING(100),
-    allowNull: false,
-  },
-  originStationId: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'stations',
-      key: 'id',
+const routeSchema = new mongoose.Schema(
+  {
+    routeName: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100,
+    },
+    originStationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Station',
+      required: true,
+    },
+    destinationStationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Station',
+      required: true,
+    },
+    distance: {
+      type: Number,
+      required: false,
+      min: 0,
     },
   },
-  destinationStationId: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'stations',
-      key: 'id',
+  {
+    timestamps: true,
+    toJSON: {
+      versionKey: false,
+      transform: (_, ret) => {
+        ret.id = ret._id.toString();
+        delete ret._id;
+      },
     },
-  },
-  distance: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: true,
-    comment: 'Distance in kilometers',
-  },
-}, {
-  tableName: 'routes',
-  timestamps: true,
-});
+  }
+);
 
-module.exports = Route;
+module.exports = mongoose.models.Route || mongoose.model('Route', routeSchema);

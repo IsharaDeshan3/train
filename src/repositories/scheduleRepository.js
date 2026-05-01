@@ -1,41 +1,70 @@
-const { Op } = require('sequelize');
 const { Schedule, Train, Route, Station } = require('../models');
 const { redisClient } = require('../config/redis');
 
 const CACHE_TTL = 300; // 5 minutes
 
+const populateScheduleQuery = (query) => query
+  .populate({ path: 'trainId', model: Train, select: 'trainNumber name type totalSeats status' })
+  .populate({
+    path: 'routeId',
+    model: Route,
+    select: 'routeName distance originStationId destinationStationId',
+    populate: [
+      { path: 'originStationId', model: Station, select: 'code name city' },
+      { path: 'destinationStationId', model: Station, select: 'code name city' },
+    ],
+  });
+
+const mapRouteForResponse = (routeDoc) => {
+  if (!routeDoc) return null;
+  const route = routeDoc.toJSON();
+  const originStation = route.originStationId && typeof route.originStationId === 'object'
+    ? route.originStationId
+    : null;
+  const destinationStation = route.destinationStationId && typeof route.destinationStationId === 'object'
+    ? route.destinationStationId
+    : null;
+
+  return {
+    ...route,
+    originStationId: originStation?.id || route.originStationId,
+    destinationStationId: destinationStation?.id || route.destinationStationId,
+    originStation,
+    destinationStation,
+  };
+};
+
+const mapScheduleForResponse = (scheduleDoc) => {
+  const schedule = scheduleDoc.toJSON();
+  const train = schedule.trainId && typeof schedule.trainId === 'object' ? schedule.trainId : null;
+  const route = schedule.routeId && typeof schedule.routeId === 'object' ? schedule.routeId : null;
+
+  return {
+    ...schedule,
+    trainId: train?.id || schedule.trainId,
+    routeId: route?.id || schedule.routeId,
+    Train: train,
+    Route: route ? mapRouteForResponse(routeDocFromObject(route)) : null,
+  };
+};
+
+const routeDocFromObject = (route) => ({
+  toJSON: () => route,
+});
+
 class ScheduleRepository {
   async findAll() {
-    return Schedule.findAll({
-      include: [
-        { model: Train, attributes: ['id', 'trainNumber', 'name', 'type', 'totalSeats', 'status'] },
-        {
-          model: Route,
-          attributes: ['id', 'routeName', 'distance'],
-          include: [
-            { model: Station, as: 'originStation', attributes: ['id', 'code', 'name', 'city'] },
-            { model: Station, as: 'destinationStation', attributes: ['id', 'code', 'name', 'city'] },
-          ],
-        },
-      ],
-      order: [['departureTime', 'ASC']],
-    });
+    const schedules = await populateScheduleQuery(Schedule.find().sort({ departureTime: 1 }));
+    return schedules.map(mapScheduleForResponse);
   }
 
   async findById(id) {
-    return Schedule.findByPk(id, {
-      include: [
-        { model: Train, attributes: ['id', 'trainNumber', 'name', 'type', 'totalSeats', 'status'] },
-        {
-          model: Route,
-          attributes: ['id', 'routeName', 'distance'],
-          include: [
-            { model: Station, as: 'originStation', attributes: ['id', 'code', 'name', 'city'] },
-            { model: Station, as: 'destinationStation', attributes: ['id', 'code', 'name', 'city'] },
-          ],
-        },
-      ],
-    });
+    try {
+      const schedule = await populateScheduleQuery(Schedule.findById(id));
+      return schedule ? mapScheduleForResponse(schedule) : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   async create(data) {
@@ -43,16 +72,19 @@ class ScheduleRepository {
   }
 
   async update(id, data) {
-    const schedule = await Schedule.findByPk(id);
-    if (!schedule) return null;
-    return schedule.update(data);
+    try {
+      return await Schedule.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+    } catch (_) {
+      return null;
+    }
   }
 
   async delete(id) {
-    const schedule = await Schedule.findByPk(id);
-    if (!schedule) return null;
-    await schedule.destroy();
-    return schedule;
+    try {
+      return await Schedule.findByIdAndDelete(id);
+    } catch (_) {
+      return null;
+    }
   }
 
   async searchSchedules(origin, destination, date) {
@@ -76,48 +108,51 @@ class ScheduleRepository {
     const routeWhere = {};
 
     if (origin) {
-      const originStation = await Station.findOne({ where: { code: origin.toUpperCase() } });
-      if (originStation) routeWhere.originStationId = originStation.id;
+      const originStation = await Station.findOne({ code: origin.toUpperCase() });
+      if (originStation) routeWhere.originStationId = originStation._id;
     }
     if (destination) {
-      const destStation = await Station.findOne({ where: { code: destination.toUpperCase() } });
-      if (destStation) routeWhere.destinationStationId = destStation.id;
+      const destStation = await Station.findOne({ code: destination.toUpperCase() });
+      if (destStation) routeWhere.destinationStationId = destStation._id;
     }
 
-    // Filter by day of operation if date is provided
+    // Filter by day of operation if date is provided.
+    // daysOfOperation is an array field, so we use $in for containment matching.
     if (date) {
       const dayOfWeek = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
-      whereConditions.daysOfOperation = { [Op.contains]: [dayOfWeek] };
+      whereConditions.daysOfOperation = { $in: [dayOfWeek] };
     }
 
-    const results = await Schedule.findAll({
-      where: whereConditions,
-      include: [
-        { model: Train, attributes: ['id', 'trainNumber', 'name', 'type', 'totalSeats', 'status'] },
-        {
-          model: Route,
-          where: Object.keys(routeWhere).length > 0 ? routeWhere : undefined,
-          attributes: ['id', 'routeName', 'distance'],
-          include: [
-            { model: Station, as: 'originStation', attributes: ['id', 'code', 'name', 'city'] },
-            { model: Station, as: 'destinationStation', attributes: ['id', 'code', 'name', 'city'] },
-          ],
-        },
-      ],
-      order: [['departureTime', 'ASC']],
-    });
+    const matchedRouteIds = Object.keys(routeWhere).length > 0
+      ? (await Route.find(routeWhere).select('_id')).map((route) => route._id)
+      : null;
+
+    if (matchedRouteIds && matchedRouteIds.length === 0) {
+      return [];
+    }
+
+    const scheduleFilter = {
+      ...whereConditions,
+      ...(matchedRouteIds ? { routeId: { $in: matchedRouteIds } } : {}),
+    };
+
+    const results = await populateScheduleQuery(
+      Schedule.find(scheduleFilter).sort({ departureTime: 1 })
+    );
+
+    const mappedResults = results.map(mapScheduleForResponse);
 
     // Cache the results
     try {
       if (redisClient.isOpen) {
-        await redisClient.setEx(cacheKey, CACHE_TTL, JSON.stringify(results));
+        await redisClient.setEx(cacheKey, CACHE_TTL, JSON.stringify(mappedResults));
         console.log('💾 Cached results for:', cacheKey);
       }
     } catch (err) {
       console.error('Redis write error:', err.message);
     }
 
-    return results;
+    return mappedResults;
   }
 
   async invalidateCache() {

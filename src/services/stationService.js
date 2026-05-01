@@ -1,4 +1,5 @@
 const stationRepository = require('../repositories/stationRepository');
+const { publishDomainEvent } = require('../messaging/eventPublisher');
 
 class StationService {
   async getAllStations() {
@@ -25,14 +26,22 @@ class StationService {
       throw Object.assign(new Error(`Station with code ${code} already exists`), { statusCode: 409 });
     }
 
-    return stationRepository.create({ code: code.toUpperCase(), name, city, latitude, longitude });
+    const station = await stationRepository.create({ code: code.toUpperCase(), name, city, latitude, longitude });
+
+    try {
+      await publishDomainEvent('station', 'created', station.toJSON());
+    } catch (err) {
+      console.error('Failed to publish station.created event:', err.message);
+    }
+
+    return station;
   }
 
   async updateStation(id, data) {
     if (data.code) {
       data.code = data.code.toUpperCase();
       const existing = await stationRepository.findByCode(data.code);
-      if (existing && existing.id !== parseInt(id)) {
+      if (existing && existing.id !== id) {
         throw Object.assign(new Error(`Station code ${data.code} is already in use`), { statusCode: 409 });
       }
     }
@@ -41,6 +50,13 @@ class StationService {
     if (!station) {
       throw Object.assign(new Error('Station not found'), { statusCode: 404 });
     }
+
+    try {
+      await publishDomainEvent('station', 'updated', station.toJSON());
+    } catch (err) {
+      console.error('Failed to publish station.updated event:', err.message);
+    }
+
     return station;
   }
 
@@ -49,6 +65,13 @@ class StationService {
     if (!station) {
       throw Object.assign(new Error('Station not found'), { statusCode: 404 });
     }
+
+    try {
+      await publishDomainEvent('station', 'deleted', station.toJSON());
+    } catch (err) {
+      console.error('Failed to publish station.deleted event:', err.message);
+    }
+
     return station;
   }
 }

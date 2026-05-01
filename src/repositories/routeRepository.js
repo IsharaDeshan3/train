@@ -1,23 +1,43 @@
 const { Route, Station } = require('../models');
 
+const mapRoute = (route) => {
+  const item = route.toJSON();
+  const originStation = item.originStationId && typeof item.originStationId === 'object'
+    ? item.originStationId
+    : null;
+  const destinationStation = item.destinationStationId && typeof item.destinationStationId === 'object'
+    ? item.destinationStationId
+    : null;
+
+  return {
+    ...item,
+    originStationId: originStation?.id || item.originStationId,
+    destinationStationId: destinationStation?.id || item.destinationStationId,
+    originStation,
+    destinationStation,
+  };
+};
+
 class RouteRepository {
   async findAll() {
-    return Route.findAll({
-      include: [
-        { model: Station, as: 'originStation', attributes: ['id', 'code', 'name', 'city'] },
-        { model: Station, as: 'destinationStation', attributes: ['id', 'code', 'name', 'city'] },
-      ],
-      order: [['routeName', 'ASC']],
-    });
+    const routes = await Route.find()
+      .sort({ routeName: 1 })
+      .populate({ path: 'originStationId', model: Station, select: 'code name city' })
+      .populate({ path: 'destinationStationId', model: Station, select: 'code name city' });
+
+    return routes.map(mapRoute);
   }
 
   async findById(id) {
-    return Route.findByPk(id, {
-      include: [
-        { model: Station, as: 'originStation', attributes: ['id', 'code', 'name', 'city'] },
-        { model: Station, as: 'destinationStation', attributes: ['id', 'code', 'name', 'city'] },
-      ],
-    });
+    try {
+      const route = await Route.findById(id)
+        .populate({ path: 'originStationId', model: Station, select: 'code name city' })
+        .populate({ path: 'destinationStationId', model: Station, select: 'code name city' });
+
+      return route ? mapRoute(route) : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   async create(data) {
@@ -25,16 +45,19 @@ class RouteRepository {
   }
 
   async update(id, data) {
-    const route = await Route.findByPk(id);
-    if (!route) return null;
-    return route.update(data);
+    try {
+      return await Route.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+    } catch (_) {
+      return null;
+    }
   }
 
   async delete(id) {
-    const route = await Route.findByPk(id);
-    if (!route) return null;
-    await route.destroy();
-    return route;
+    try {
+      return await Route.findByIdAndDelete(id);
+    } catch (_) {
+      return null;
+    }
   }
 }
 

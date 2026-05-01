@@ -1,39 +1,46 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const { mongoose } = require('../config/database');
 
-const Train = sequelize.define('Train', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
+const trainSchema = new mongoose.Schema(
+  {
+    trainNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      maxlength: 20,
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100,
+    },
+    type: {
+      type: String,
+      enum: ['express', 'local', 'intercity'],
+      default: 'local',
+    },
+    totalSeats: {
+      type: Number,
+      default: 200,
+      min: 0,
+    },
+    status: {
+      type: String,
+      enum: ['active', 'inactive', 'maintenance'],
+      default: 'active',
+    },
   },
-  trainNumber: {
-    type: DataTypes.STRING(20),
-    allowNull: false,
-    unique: true,
-  },
-  name: {
-    type: DataTypes.STRING(100),
-    allowNull: false,
-  },
-  type: {
-    type: DataTypes.ENUM('express', 'local', 'intercity'),
-    allowNull: false,
-    defaultValue: 'local',
-  },
-  totalSeats: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 200,
-  },
-  status: {
-    type: DataTypes.ENUM('active', 'inactive', 'maintenance'),
-    allowNull: false,
-    defaultValue: 'active',
-  },
-}, {
-  tableName: 'trains',
-  timestamps: true,
-});
+  {
+    timestamps: true,
+    toJSON: {
+      versionKey: false,
+      transform: (_, ret) => {
+        ret.id = ret._id.toString();
+        delete ret._id;
+      },
+    },
+  }
+);
 
-module.exports = Train;
+module.exports = mongoose.models.Train || mongoose.model('Train', trainSchema);
